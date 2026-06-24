@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CREED PnL Journal</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#f5f5f5;color:#222;padding:16px;max-width:700px;margin:0 auto}
+h1{font-size:20px;font-weight:700;color:#1F3864;margin-bottom:2px}
+.sub{font-size:13px;color:#888;margin-bottom:20px}
+.tab-bar{display:flex;gap:0;border-bottom:2px solid #ddd;margin-bottom:20px}
+.tab{padding:9px 20px;font-size:14px;cursor:pointer;border:none;background:none;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;font-weight:500}
+.tab.active{color:#1F3864;border-bottom-color:#1F3864}
+.view{display:none}.view.active{display:block}
+.card{background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:16px;margin-bottom:14px}
+.card-title{font-size:14px;font-weight:700;color:#1F3864;margin-bottom:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.lbl{font-size:11px;color:#999;margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px}
+.val{font-size:15px;font-weight:600;color:#222}
+.metric{background:#f0f4fa;border-radius:8px;padding:10px 12px}
+.metric .lbl{font-size:11px;color:#888;margin-bottom:4px}
+.metric .num{font-size:20px;font-weight:700;color:#222}
+.badge{display:inline-block;font-size:12px;padding:2px 10px;border-radius:5px;font-weight:700}
+.bull{background:#d4edda;color:#155724}
+.bear{background:#f8d7da;color:#721c24}
+.pos{color:#155724;font-weight:700}.neg{color:#721c24;font-weight:700}
+input[type=number],input[type=text]{width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:7px;font-size:14px;background:#fff}
+input:focus{outline:2px solid #4472C4;border-color:#4472C4}
+button{padding:9px 18px;border:1px solid #ccc;border-radius:7px;font-size:14px;cursor:pointer;background:#fff;color:#222;transition:background .1s}
+button:hover{background:#f0f0f0}
+button.primary{background:#1F3864;color:#fff;border-color:#1F3864;font-weight:600}
+button.primary:hover{background:#2F5496}
+button.danger{color:#721c24;border-color:#f5c6cb;font-size:12px}
+button.danger:hover{background:#f8d7da}
+.alert{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px}
+.info{background:#d1ecf1;color:#0c5460}
+.success{background:#d4edda;color:#155724}
+.error{background:#f8d7da;color:#721c24}
+.warn{background:#fff3cd;color:#856404}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:7px 8px;border-bottom:2px solid #eee;color:#888;font-weight:600;white-space:nowrap}
+td{padding:7px 8px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+.empty{text-align:center;padding:30px;color:#aaa;font-size:14px}
+.setup-box{background:#fff;border:2px dashed #4472C4;border-radius:10px;padding:20px;margin-bottom:16px}
+.setup-box h3{color:#1F3864;font-size:15px;margin-bottom:12px}
+.setup-row{display:flex;gap:8px;margin-bottom:8px}
+.setup-row input{flex:1}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid #ccc;border-top-color:#1F3864;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:480px){.grid3{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<h1>CREED PnL Journal</h1>
+<p class="sub">Tinh PnL tu alert EA · Luu lich su vao Google Sheets</p>
+
+<div class="tab-bar">
+  <button class="tab active" onclick="showTab('calc')">Tinh PnL</button>
+  <button class="tab" onclick="showTab('history')">Lich su</button>
+  <button class="tab" onclick="showTab('stats')">Thong ke</button>
+  <button class="tab" onclick="showTab('setup')">Cai dat</button>
+</div>
+
+<!-- ── TAB CALC ── -->
+<div id="view-calc" class="view active">
+  <div id="alert-calc" class="alert info">Mo link nay tu alert EA de tu dong dien thong tin phase.</div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <span class="card-title" style="margin:0">Thong tin phase</span>
+      <span id="phase-badge" class="badge" style="background:#eee;color:#888">--</span>
+    </div>
+    <div class="grid2" style="margin-bottom:10px">
+      <div><div class="lbl">Symbol</div><div class="val" id="d-sym">--</div></div>
+      <div><div class="lbl">Timeframe</div><div class="val" id="d-tf">--</div></div>
+    </div>
+    <div class="grid3" style="margin-bottom:10px">
+      <div><div class="lbl">Entry price</div><div class="val" id="d-ep">--</div></div>
+      <div><div class="lbl">Exit price</div><div class="val" id="d-xp">--</div></div>
+      <div><div class="lbl">Move (pts)</div><div class="val" id="d-mv">--</div></div>
+    </div>
+    <div class="grid2" style="margin-bottom:10px">
+      <div><div class="lbl">Entry time</div><div class="val" id="d-et">--</div></div>
+      <div><div class="lbl">Exit time</div><div class="val" id="d-xt">--</div></div>
+    </div>
+    <div class="grid2">
+      <div><div class="lbl">Swing SL</div><div class="val" id="d-sl">--</div></div>
+      <div><div class="lbl">RtR</div><div class="val" id="d-rtr">--</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Nhap lot & tinh PnL</div>
+    <div class="grid2" style="margin-bottom:12px">
+      <div>
+        <div class="lbl" style="margin-bottom:5px">Lot size</div>
+        <input type="number" id="inp-lot" value="0.1" min="0.01" step="0.01" oninput="calcPnl()">
+      </div>
+      <div>
+        <div class="lbl" style="margin-bottom:5px">Pip value (USD/lot) — XAUUSD=100</div>
+        <input type="number" id="inp-pipval" value="100" min="1" step="1" oninput="calcPnl()">
+      </div>
+    </div>
+    <div class="grid3">
+      <div class="metric"><div class="lbl">PnL (USD)</div><div class="num" id="r-pnl">--</div></div>
+      <div class="metric"><div class="lbl">Move (pts)</div><div class="num" id="r-pts">--</div></div>
+      <div class="metric"><div class="lbl">RtR</div><div class="num" id="r-rtr">--</div></div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px">
+    <button class="primary" id="btn-save" onclick="saveEntry()" style="flex:1" disabled>Luu vao Google Sheets</button>
+    <button onclick="clearForm()">Xoa</button>
+  </div>
+</div>
+
+<!-- ── TAB HISTORY ── -->
+<div id="view-history" class="view">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <span style="font-size:15px;font-weight:700;color:#1F3864">Lich su giao dich</span>
+    <div style="display:flex;gap:8px">
+      <button onclick="loadHistory()" style="font-size:12px;padding:6px 12px">Tai lai</button>
+      <button class="danger" onclick="clearHistory()">Xoa tat ca</button>
+    </div>
+  </div>
+  <div id="alert-history"></div>
+  <div id="history-table"></div>
+</div>
+
+<!-- ── TAB STATS ── -->
+<div id="view-stats" class="view">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <span style="font-size:15px;font-weight:700;color:#1F3864">Thong ke</span>
+    <button onclick="loadStats()" style="font-size:12px;padding:6px 12px">Tai lai</button>
+  </div>
+  <div id="alert-stats"></div>
+  <div id="stats-content"></div>
+</div>
+
+<!-- ── TAB SETUP ── -->
+<div id="view-setup" class="view">
+  <div class="setup-box">
+    <h3>Nhap Apps Script URL</h3>
+    <p style="font-size:13px;color:#555;margin-bottom:12px">
+      URL nay lay tu Google Apps Script sau khi ban deploy. Xem huong dan trong file CREED_AppsScript.gs.
+    </p>
+    <div class="setup-row">
+      <input type="text" id="inp-url" placeholder="https://script.google.com/macros/s/.../exec">
+      <button class="primary" onclick="saveURL()">Luu</button>
+    </div>
+    <div id="url-status" style="font-size:12px;color:#888;margin-top:6px"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Kiem tra ket noi</div>
+    <button onclick="testConnection()" style="margin-bottom:10px">Test ket noi den Google Sheets</button>
+    <div id="test-result"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Huong dan nhanh</div>
+    <ol style="font-size:13px;color:#444;padding-left:18px;line-height:2">
+      <li>Tao Google Sheet moi tai sheets.google.com</li>
+      <li>Mo Extensions > Apps Script</li>
+      <li>Paste noi dung file CREED_AppsScript.gs vao</li>
+      <li>Deploy > New deployment > Web app > Anyone > Deploy</li>
+      <li>Copy Web app URL, dan vao o ben tren, bam Luu</li>
+      <li>Dien cung URL do vao input WebAppBaseURL trong EA</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+const URL_KEY = 'creed_script_url';
+let currentData = null;
+let scriptURL   = '';
+
+// ── INIT ─────────────────────────────────────────────────────
+(function init() {
+  scriptURL = localStorage.getItem(URL_KEY) || '';
+  if (document.getElementById('inp-url'))
+    document.getElementById('inp-url').value = scriptURL;
+
+  const data = parseURLParams();
+  if (data && data.sym) {
+    fillForm(data);
+  }
+})();
+
+// ── TAB ──────────────────────────────────────────────────────
+function showTab(t) {
+  ['calc','history','stats','setup'].forEach(function(x) {
+    document.getElementById('view-'+x).classList.remove('active');
+  });
+  document.querySelectorAll('.tab').forEach(function(b) { b.classList.remove('active'); });
+  document.getElementById('view-'+t).classList.add('active');
+  const idx = ['calc','history','stats','setup'].indexOf(t);
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+  if (t === 'history') loadHistory();
+  if (t === 'stats')   loadStats();
+  if (t === 'setup') {
+    document.getElementById('inp-url').value = scriptURL;
+  }
+}
+
+// ── URL PARAMS ───────────────────────────────────────────────
+function parseURLParams() {
+  try {
+    const p = new URLSearchParams(window.location.search);
+    if (!p.get('sym')) return null;
+    return {
+      sym: p.get('sym')||'', phase: p.get('ph')||'',
+      tf:  p.get('tf') ||'', mtf:   p.get('mtf')||'',
+      ep:  parseFloat(p.get('ep'))||0,  xp: parseFloat(p.get('xp'))||0,
+      et:  parseInt(p.get('et'))  ||0,  xt: parseInt(p.get('xt'))  ||0,
+      sl:  parseFloat(p.get('sl'))||0,  mv: parseFloat(p.get('mv'))||0
+    };
+  } catch(e) { return null; }
+}
+
+// ── FILL FORM ────────────────────────────────────────────────
+function fillForm(data) {
+  currentData = data;
+  setText('d-sym', data.sym || '--');
+  setText('d-tf',  data.tf + (data.mtf ? ' (Master: '+data.mtf+')' : ''));
+  setText('d-ep',  data.ep ? data.ep.toFixed(2) : '--');
+  setText('d-xp',  data.xp ? data.xp.toFixed(2) : '--');
+  const mv = data.mv || 0;
+  const mvEl = document.getElementById('d-mv');
+  mvEl.textContent = (mv>=0?'+':'') + mv.toFixed(0) + ' pts';
+  mvEl.className = 'val ' + (mv>=0?'pos':'neg');
+  setText('d-et', unixToStr(data.et));
+  setText('d-xt', unixToStr(data.xt));
+  setText('d-sl', data.sl ? data.sl.toFixed(2) : '--');
+  const badge = document.getElementById('phase-badge');
+  badge.textContent = data.phase || '--';
+  badge.className = 'badge ' + (data.phase==='BULL'?'bull':data.phase==='BEAR'?'bear':'');
+  document.getElementById('btn-save').disabled = false;
+  showAlert('alert-calc', 'success', 'Da nhan du lieu tu EA: ' + data.sym + ' ' + data.phase + ' — Nhap lot de tinh PnL.');
+  calcPnl();
+}
+
+// ── CALC PNL ─────────────────────────────────────────────────
+function calcPnl() {
+  if (!currentData) return;
+  const lot   = parseFloat(document.getElementById('inp-lot').value)    || 0;
+  const pipv  = parseFloat(document.getElementById('inp-pipval').value) || 100;
+  const mv    = currentData.mv || 0;
+  const pnl   = (mv / 10) * lot * pipv;
+  const ep    = currentData.ep || 0;
+  const xp    = currentData.xp || 0;
+  const sl    = currentData.sl || 0;
+  let rtr = '--';
+  if (sl > 0 && ep > 0) {
+    const risk = Math.abs(ep - sl), reward = Math.abs(xp - ep);
+    if (risk > 0) rtr = '1:' + (reward/risk).toFixed(2);
+  }
+  const pnlEl = document.getElementById('r-pnl');
+  pnlEl.textContent = (pnl>=0?'+':'') + pnl.toFixed(2) + ' $';
+  pnlEl.className = 'num ' + (pnl>=0?'pos':'neg');
+  setText('r-pts', (mv>=0?'+':'') + mv.toFixed(0));
+  setText('r-rtr', rtr);
+  setText('d-rtr', rtr);
+}
+
+// ── SAVE ─────────────────────────────────────────────────────
+function saveEntry() {
+  if (!currentData) return;
+  if (!scriptURL) {
+    showAlert('alert-calc', 'warn', 'Chua cai dat Apps Script URL. Vao tab Cai dat de nhap URL.');
+    return;
+  }
+  const lot  = parseFloat(document.getElementById('inp-lot').value)    || 0;
+  const pipv = parseFloat(document.getElementById('inp-pipval').value) || 100;
+  const btn  = document.getElementById('btn-save');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>Dang luu...';
+
+  const params = new URLSearchParams({
+    action: 'save',
+    sym:  currentData.sym,   ph:  currentData.phase,
+    tf:   currentData.tf,    mtf: currentData.mtf,
+    ep:   currentData.ep,    xp:  currentData.xp,
+    et:   currentData.et,    xt:  currentData.xt,
+    sl:   currentData.sl,    mv:  currentData.mv,
+    lot:  lot,               pipv: pipv
+  });
+
+  fetch(scriptURL + '?' + params.toString())
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        showAlert('alert-calc', 'success', 'Da luu thanh cong vao Google Sheets!');
+      } else {
+        showAlert('alert-calc', 'error', 'Loi: ' + (data.error || 'Unknown'));
+      }
+    })
+    .catch(function(e) {
+      showAlert('alert-calc', 'error', 'Khong ket noi duoc. Kiem tra URL trong tab Cai dat.');
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.innerHTML = 'Luu vao Google Sheets';
+    });
+}
+
+// ── LOAD HISTORY ─────────────────────────────────────────────
+function loadHistory() {
+  const el = document.getElementById('history-table');
+  if (!scriptURL) {
+    el.innerHTML = '<div class="empty">Chua cai dat Apps Script URL. Vao tab Cai dat.</div>';
+    return;
+  }
+  el.innerHTML = '<div class="empty"><span class="spin"></span> Dang tai...</div>';
+
+  fetch(scriptURL + '?action=load')
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (!res.ok || !res.data.length) {
+        el.innerHTML = '<div class="empty">Chua co giao dich nao.</div>';
+        return;
+      }
+      renderHistoryTable(res.data, el);
+    })
+    .catch(function() {
+      el.innerHTML = '<div class="empty">Loi tai du lieu. Kiem tra ket noi.</div>';
+    });
+}
+
+function renderHistoryTable(list, el) {
+  let html = '<div style="overflow-x:auto"><table><thead><tr>'
+    + '<th>Symbol</th><th>Phase</th><th>TF</th>'
+    + '<th>Entry</th><th>Exit</th><th>Lot</th>'
+    + '<th>PnL ($)</th><th>RtR</th><th>Ngay vao</th><th></th>'
+    + '</tr></thead><tbody>';
+  list.forEach(function(r) {
+    const pnl = parseFloat(r['PnL (USD)']) || 0;
+    const win = pnl >= 0;
+    html += '<tr>'
+      + '<td><b>' + r['Symbol'] + '</b></td>'
+      + '<td><span class="badge ' + (r['Phase']==='BULL'?'bull':'bear') + '">' + r['Phase'] + '</span></td>'
+      + '<td>' + r['TF'] + '</td>'
+      + '<td>' + (r['Entry Price']||'--') + '</td>'
+      + '<td>' + (r['Exit Price'] ||'--') + '</td>'
+      + '<td>' + (r['Lot']||'--') + '</td>'
+      + '<td class="' + (win?'pos':'neg') + '">' + (pnl>=0?'+':'') + pnl.toFixed(2) + '</td>'
+      + '<td>' + (r['RtR']||'--') + '</td>'
+      + '<td style="white-space:nowrap;font-size:11px;color:#999">' + r['Entry Time'] + '</td>'
+      + '<td><button class="danger" onclick="deleteEntry(\'' + r['ID'] + '\')">Xoa</button></td>'
+      + '</tr>';
+  });
+  html += '</tbody></table></div>';
+  el.innerHTML = html;
+}
+
+function deleteEntry(id) {
+  if (!confirm('Xoa giao dich nay?')) return;
+  fetch(scriptURL + '?action=delete&id=' + id)
+    .then(function() { loadHistory(); });
+}
+
+function clearHistory() {
+  if (!confirm('Xoa toan bo lich su?')) return;
+  fetch(scriptURL + '?action=clear')
+    .then(function() { loadHistory(); });
+}
+
+// ── STATS ────────────────────────────────────────────────────
+function loadStats() {
+  const el = document.getElementById('stats-content');
+  if (!scriptURL) {
+    el.innerHTML = '<div class="empty">Chua cai dat Apps Script URL.</div>';
+    return;
+  }
+  el.innerHTML = '<div class="empty"><span class="spin"></span> Dang tinh...</div>';
+
+  fetch(scriptURL + '?action=load')
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (!res.ok || !res.data.length) {
+        el.innerHTML = '<div class="empty">Chua co du lieu.</div>';
+        return;
+      }
+      renderStats(res.data, el);
+    })
+    .catch(function() {
+      el.innerHTML = '<div class="empty">Loi tai du lieu.</div>';
+    });
+}
+
+function renderStats(list, el) {
+  const total    = list.length;
+  const pnls     = list.map(function(r) { return parseFloat(r['PnL (USD)']) || 0; });
+  const wins     = pnls.filter(function(p) { return p > 0; }).length;
+  const losses   = total - wins;
+  const totalPnl = pnls.reduce(function(s,p) { return s+p; }, 0);
+  const avgPnl   = totalPnl / total;
+  const best     = Math.max.apply(null, pnls);
+  const worst    = Math.min.apply(null, pnls);
+  const winRate  = (wins / total * 100).toFixed(1);
+  const rtrs     = list.map(function(r) {
+    const v = r['RtR'];
+    if (!v || v === '--') return null;
+    const parts = String(v).split(':');
+    return parts.length === 2 ? parseFloat(parts[1]) : null;
+  }).filter(function(v) { return v !== null; });
+  const avgRtr = rtrs.length ? rtrs.reduce(function(s,v) { return s+v; },0) / rtrs.length : 0;
+
+  el.innerHTML =
+    '<div class="grid3" style="margin-bottom:12px">'
+    + metric('Tong lenh', total)
+    + metric('Win rate', winRate + '%')
+    + metric('Avg RtR', avgRtr ? '1:'+avgRtr.toFixed(2) : '--')
+    + '</div>'
+    + '<div class="grid2" style="margin-bottom:12px">'
+    + metric('Tong PnL', (totalPnl>=0?'+':'')+totalPnl.toFixed(2)+'$', totalPnl>=0?'pos':'neg')
+    + metric('Avg PnL/lenh', (avgPnl>=0?'+':'')+avgPnl.toFixed(2)+'$', avgPnl>=0?'pos':'neg')
+    + '</div>'
+    + '<div class="grid2" style="margin-bottom:12px">'
+    + metric('Best win', '+'+best.toFixed(2)+'$', 'pos')
+    + metric('Worst loss', worst.toFixed(2)+'$', 'neg')
+    + '</div>'
+    + '<div class="card"><div class="card-title">Win / Loss</div>'
+    + '<div style="display:flex;gap:8px;align-items:center">'
+    + '<div style="flex:'+wins+';background:#28a745;height:12px;border-radius:5px;min-width:4px"></div>'
+    + '<div style="flex:'+(losses||0.01)+';background:#dc3545;height:12px;border-radius:5px;min-width:4px"></div>'
+    + '</div>'
+    + '<div style="display:flex;justify-content:space-between;font-size:12px;color:#888;margin-top:6px">'
+    + '<span class="pos">'+wins+' wins ('+winRate+'%)</span>'
+    + '<span class="neg">'+losses+' losses</span></div></div>';
+}
+
+function metric(lbl, val, cls) {
+  return '<div class="metric"><div class="lbl">'+lbl+'</div>'
+       + '<div class="num'+(cls?' '+cls:'')+'">' + val + '</div></div>';
+}
+
+// ── SETUP ────────────────────────────────────────────────────
+function saveURL() {
+  const url = document.getElementById('inp-url').value.trim();
+  if (!url) { document.getElementById('url-status').textContent = 'Vui long nhap URL.'; return; }
+  scriptURL = url;
+  localStorage.setItem(URL_KEY, url);
+  document.getElementById('url-status').textContent = 'Da luu! URL: ' + url.substring(0,50) + '...';
+}
+
+function testConnection() {
+  const el = document.getElementById('test-result');
+  if (!scriptURL) { el.innerHTML = '<span style="color:#721c24">Chua nhap URL.</span>'; return; }
+  el.innerHTML = '<span class="spin"></span> Dang kiem tra...';
+  fetch(scriptURL + '?action=load')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok)
+        el.innerHTML = '<span style="color:#155724">Ket noi thanh cong! So lenh hien tai: ' + data.data.length + '</span>';
+      else
+        el.innerHTML = '<span style="color:#721c24">Loi: ' + data.error + '</span>';
+    })
+    .catch(function() {
+      el.innerHTML = '<span style="color:#721c24">Khong ket noi duoc. Kiem tra URL va quyen truy cap.</span>';
+    });
+}
+
+// ── HELPERS ──────────────────────────────────────────────────
+function clearForm() {
+  currentData = null;
+  ['d-sym','d-tf','d-ep','d-xp','d-mv','d-et','d-xt','d-sl','d-rtr','r-pnl','r-pts','r-rtr']
+    .forEach(function(id) {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = '--'; el.className = el.className.replace(/ pos| neg/g,''); }
+    });
+  const badge = document.getElementById('phase-badge');
+  badge.textContent = '--'; badge.className = 'badge';
+  document.getElementById('btn-save').disabled = true;
+  document.getElementById('alert-calc').className = 'alert info';
+  document.getElementById('alert-calc').textContent = 'Mo link nay tu alert EA de tu dong dien thong tin phase.';
+}
+
+function showAlert(id, type, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = 'alert ' + type;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function unixToStr(ts) {
+  if (!ts) return '--';
+  const d = new Date(ts * 1000);
+  return d.getFullYear() + '.' + pad(d.getMonth()+1) + '.' + pad(d.getDate())
+       + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+function pad(n) { return String(n).padStart(2,'0'); }
+</script>
+</body>
+</html>
