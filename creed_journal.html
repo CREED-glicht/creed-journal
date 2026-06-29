@@ -111,10 +111,13 @@ td{padding:7px 8px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
     </div>
   </div>
 
-  <div style="display:flex;gap:10px">
+  <div style="display:flex;gap:10px;margin-bottom:8px">
     <button class="primary" id="btn-save" onclick="saveEntry()" style="flex:1" disabled>Luu vao Google Sheets</button>
     <button onclick="clearForm()">Xoa</button>
   </div>
+  <button id="btn-skip" onclick="saveSkipped()" style="width:100%;padding:9px;border:1px dashed #ccc;border-radius:7px;font-size:13px;cursor:pointer;background:#fafafa;color:#888" disabled>
+    Khong giao dich phase nay (luu PnL = $0.00)
+  </button>
 </div>
 
 <!-- ── TAB HISTORY ── -->
@@ -227,6 +230,7 @@ function fillForm(data) {
   badge.textContent = data.phase || '--';
   badge.className = 'badge ' + (data.phase==='BULL'?'bull':data.phase==='BEAR'?'bear':'');
   document.getElementById('btn-save').disabled = false;
+  document.getElementById('btn-skip').disabled = false;
   showAlert('alert-calc', 'success', 'Da nhan du lieu tu EA: ' + data.sym + ' ' + data.phase + ' — Nhap lot de tinh PnL.');
   calcPnl();
 }
@@ -337,7 +341,7 @@ function renderHistoryTable(list, el) {
       + '<td class="' + (win?'pos':'neg') + '">' + (pnl>=0?'+':'') + pnl.toFixed(2) + '</td>'
       + '<td>' + (r['RtR']||'--') + '</td>'
       + '<td style="white-space:nowrap;font-size:11px;color:#999">' + r['Entry Time'] + '</td>'
-      + '<td><button class="danger" onclick="deleteEntry(\'' + r['ID'] + '\')">Xoa</button></td>'
+      + '<td style="display:flex;gap:4px"><button onclick="openEditModal(' + JSON.stringify(r).replace(/'/g,"\\'") + ')" style="font-size:11px;padding:4px 8px;border:1px solid #4472C4;border-radius:6px;color:#1F3864;cursor:pointer;background:#fff">Edit</button><button class="danger" onclick="deleteEntry(\'' + r['ID'] + '\')">Xoa</button></td>'
       + '</tr>';
   });
   html += '</tbody></table></div>';
@@ -463,6 +467,7 @@ function clearForm() {
   const badge = document.getElementById('phase-badge');
   badge.textContent = '--'; badge.className = 'badge';
   document.getElementById('btn-save').disabled = true;
+  document.getElementById('btn-skip').disabled = true;
   document.getElementById('alert-calc').className = 'alert info';
   document.getElementById('alert-calc').textContent = 'Mo link nay tu alert EA de tu dong dien thong tin phase.';
 }
@@ -504,6 +509,192 @@ function pad(n) { return String(n).padStart(2,'0'); }
     box.style.display = 'block';
   }
 })();
+
+// ── SKIP (khong giao dich) ───────────────────────────────────
+function saveSkipped() {
+  if (!currentData) return;
+  if (!scriptURL) {
+    showAlert('alert-calc', 'warn', 'Chua cai dat Apps Script URL. Vao tab Cai dat de nhap URL.');
+    return;
+  }
+  if (!confirm('Luu phase nay voi PnL = $0.00 (khong giao dich)?')) return;
+
+  const btn = document.getElementById('btn-skip');
+  btn.disabled = true;
+  btn.textContent = 'Dang luu...';
+
+  const params = new URLSearchParams({
+    action: 'save',
+    sym:  currentData.sym,   ph:  currentData.phase,
+    tf:   currentData.tf,    mtf: currentData.mtf,
+    ep:   currentData.ep,    xp:  currentData.xp,
+    et:   currentData.et,    xt:  currentData.xt,
+    sl:   currentData.sl,    mv:  currentData.mv,
+    lot:  0,                 pipv: 10,
+    skip: 1   // flag de Apps Script biet day la skip
+  });
+
+  fetch(scriptURL + '?' + params.toString())
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        showAlert('alert-calc', 'success', 'Da luu: Khong giao dich phase nay. PnL = +0.00$');
+      } else {
+        showAlert('alert-calc', 'error', 'Loi: ' + (data.error || 'Unknown'));
+      }
+    })
+    .catch(function() {
+      showAlert('alert-calc', 'error', 'Khong ket noi duoc.');
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.textContent = 'Khong giao dich phase nay (luu PnL = $0.00)';
+    });
+}
+
+// ── EDIT MODAL ───────────────────────────────────────────────
+function openEditModal(row) {
+  document.getElementById('edit-id').value   = row['ID'] || '';
+  document.getElementById('edit-lot').value  = row['Lot'] || '0.01';
+  document.getElementById('edit-pipv').value = row['Pip Value'] || '10';
+  document.getElementById('edit-ep').value   = row['Entry Price'] || '';
+  document.getElementById('edit-xp').value   = row['Exit Price']  || '';
+  document.getElementById('edit-sl').value   = row['Swing SL']    || '';
+  updateEditPreview();
+  const modal = document.getElementById('edit-modal');
+  modal.style.display = 'flex';
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').style.display = 'none';
+}
+
+function updateEditPreview() {
+  const lot  = parseFloat(document.getElementById('edit-lot').value)  || 0;
+  const pipv = parseFloat(document.getElementById('edit-pipv').value) || 10;
+  const ep   = parseFloat(document.getElementById('edit-ep').value)   || 0;
+  const xp   = parseFloat(document.getElementById('edit-xp').value)   || 0;
+  const sl   = parseFloat(document.getElementById('edit-sl').value)   || 0;
+  // Move tinh theo pts (gia su XAUUSD, 1 pts = Point)
+  const mv   = (xp - ep) * 100; // rough pts
+  const pnl  = (Math.abs(xp - ep) * 100 / 10) * lot * pipv * (xp >= ep ? 1 : -1);
+  let rtr = '--';
+  if (sl > 0 && ep > 0) {
+    const risk = Math.abs(ep - sl), reward = Math.abs(xp - ep);
+    if (risk > 0 && xp !== ep) {
+      if ((xp > ep && ep > sl) || (xp < ep && ep < sl))
+        rtr = '1:' + (reward/risk).toFixed(2);
+      else rtr = 'Loss';
+    }
+  }
+  const el = document.getElementById('edit-preview');
+  const win = pnl >= 0;
+  el.innerHTML =
+    '<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+    + '<span style="color:#888">PnL</span>'
+    + '<span style="font-weight:700;color:'+(win?'#155724':'#721c24')+'">'+(pnl>=0?'+':'')+pnl.toFixed(2)+'$</span>'
+    + '</div>'
+    + '<div style="display:flex;justify-content:space-between">'
+    + '<span style="color:#888">RtR</span>'
+    + '<span style="font-weight:600">'+rtr+'</span>'
+    + '</div>';
+}
+
+// Live preview khi thay doi input
+['edit-lot','edit-pipv','edit-ep','edit-xp','edit-sl'].forEach(function(id) {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', updateEditPreview);
+});
+
+function submitEdit() {
+  const id   = document.getElementById('edit-id').value;
+  const lot  = parseFloat(document.getElementById('edit-lot').value)  || 0;
+  const pipv = parseFloat(document.getElementById('edit-pipv').value) || 10;
+  const ep   = parseFloat(document.getElementById('edit-ep').value)   || 0;
+  const xp   = parseFloat(document.getElementById('edit-xp').value)   || 0;
+  const sl   = parseFloat(document.getElementById('edit-sl').value)   || 0;
+
+  if (!id) { showEditAlert('error', 'Khong tim thay ID giao dich.'); return; }
+  if (!scriptURL) { showEditAlert('error', 'Chua cai dat Apps Script URL.'); return; }
+
+  const btn = document.querySelector('#edit-modal .primary');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>Dang luu...';
+
+  const params = new URLSearchParams({
+    action: 'update', id: id,
+    lot: lot, pipv: pipv,
+    ep: ep, xp: xp, sl: sl
+  });
+
+  fetch(scriptURL + '?' + params.toString())
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        closeEditModal();
+        loadHistory();
+        loadStats();
+      } else {
+        showEditAlert('error', 'Loi: ' + (data.error || 'Unknown'));
+      }
+    })
+    .catch(function() {
+      showEditAlert('error', 'Khong ket noi duoc.');
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.innerHTML = 'Luu thay doi';
+    });
+}
+
+function showEditAlert(type, msg) {
+  const el = document.getElementById('edit-alert');
+  el.className = 'alert ' + type;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// Dong modal khi bam ra ngoai
+document.getElementById('edit-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeEditModal();
+});
 </script>
+
+<!-- ── EDIT MODAL ── -->
+<div id="edit-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:12px;padding:20px;width:90%;max-width:400px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <span style="font-size:15px;font-weight:700;color:#1F3864">Chinh sua giao dich</span>
+      <button onclick="closeEditModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888">&times;</button>
+    </div>
+    <input type="hidden" id="edit-id">
+    <div style="margin-bottom:10px">
+      <div class="lbl" style="margin-bottom:4px">Lot size</div>
+      <input type="number" id="edit-lot" min="0.01" step="0.01">
+    </div>
+    <div style="margin-bottom:10px">
+      <div class="lbl" style="margin-bottom:4px">Pip value (USD/lot)</div>
+      <input type="number" id="edit-pipv" min="1" step="1">
+    </div>
+    <div style="margin-bottom:10px">
+      <div class="lbl" style="margin-bottom:4px">Entry Price</div>
+      <input type="number" id="edit-ep" step="0.01">
+    </div>
+    <div style="margin-bottom:10px">
+      <div class="lbl" style="margin-bottom:4px">Exit Price</div>
+      <input type="number" id="edit-xp" step="0.01">
+    </div>
+    <div style="margin-bottom:16px">
+      <div class="lbl" style="margin-bottom:4px">Swing SL</div>
+      <input type="number" id="edit-sl" step="0.01">
+    </div>
+    <div id="edit-preview" style="background:#f0f4fa;border-radius:8px;padding:10px;margin-bottom:16px;font-size:13px"></div>
+    <div id="edit-alert" class="alert" style="display:none;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px">
+      <button class="primary" onclick="submitEdit()" style="flex:1">Luu thay doi</button>
+      <button onclick="closeEditModal()">Huy</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
