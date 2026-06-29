@@ -125,6 +125,7 @@ td{padding:7px 8px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
     <span style="font-size:15px;font-weight:700;color:#1F3864">Lich su giao dich</span>
     <div style="display:flex;gap:8px">
+      <button onclick="openGoogleSheets()" style="font-size:12px;padding:6px 12px;background:#1F3864;color:#fff;border-color:#1F3864;border-radius:7px">Mo Sheets</button>
       <button onclick="loadHistory()" style="font-size:12px;padding:6px 12px">Tai lai</button>
       <button class="danger" onclick="clearHistory()">Xoa tat ca</button>
     </div>
@@ -137,7 +138,10 @@ td{padding:7px 8px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
 <div id="view-stats" class="view">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
     <span style="font-size:15px;font-weight:700;color:#1F3864">Thong ke</span>
-    <button onclick="loadStats()" style="font-size:12px;padding:6px 12px">Tai lai</button>
+    <div style="display:flex;gap:8px">
+      <button onclick="openGoogleSheets()" style="font-size:12px;padding:6px 12px;background:#1F3864;color:#fff;border-color:#1F3864;border-radius:7px">Mo Sheets</button>
+      <button onclick="loadStats()" style="font-size:12px;padding:6px 12px">Tai lai</button>
+    </div>
   </div>
   <div id="alert-stats"></div>
   <div id="stats-content"></div>
@@ -155,6 +159,14 @@ td{padding:7px 8px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
       <button class="primary" onclick="saveURL()">Luu</button>
     </div>
     <div id="url-status" style="font-size:12px;color:#888;margin-top:6px"></div>
+    <div style="margin-top:14px">
+      <div class="lbl" style="margin-bottom:5px">Google Sheets URL (de mo truc tiep)</div>
+      <div class="setup-row">
+        <input type="text" id="inp-sheet-url" placeholder="https://docs.google.com/spreadsheets/d/...">
+        <button class="primary" onclick="saveSheetURL()">Luu</button>
+      </div>
+      <div id="sheet-url-status" style="font-size:12px;color:#888;margin-top:4px"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -507,6 +519,10 @@ function pad(n) { return String(n).padStart(2,'0'); }
   // Load Apps Script URL da luu
   scriptURL = localStorage.getItem(URL_KEY) || '';
 
+  // Load Sheet URL neu co
+  const sheetUrlInput = document.getElementById('inp-sheet-url');
+  if (sheetUrlInput) sheetUrlInput.value = localStorage.getItem(SHEET_URL_KEY) || '';
+
   // Doc params tu URL (do EA truyen vao link)
   const data = parseURLParams();
   if (data && data.sym) {
@@ -517,6 +533,25 @@ function pad(n) { return String(n).padStart(2,'0'); }
     box.style.display = 'block';
   }
 })();
+
+// ── GOOGLE SHEETS LINK ───────────────────────────────────────
+const SHEET_URL_KEY = 'creed_sheet_url';
+
+function openGoogleSheets() {
+  const url = localStorage.getItem(SHEET_URL_KEY) || '';
+  if (!url) {
+    alert('Chua nhap Google Sheets URL. Vao tab Cai dat de nhap.');
+    return;
+  }
+  window.open(url, '_blank');
+}
+
+function saveSheetURL() {
+  const url = document.getElementById('inp-sheet-url').value.trim();
+  if (!url) return;
+  localStorage.setItem(SHEET_URL_KEY, url);
+  document.getElementById('sheet-url-status').textContent = 'Da luu!';
+}
 
 // ── SKIP (khong giao dich) ───────────────────────────────────
 function saveSkipped() {
