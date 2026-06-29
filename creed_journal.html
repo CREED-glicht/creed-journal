@@ -189,7 +189,8 @@ td{padding:7px 8px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
 </div>
 
 <script>
-const URL_KEY = 'creed_script_url';
+const URL_KEY       = 'creed_script_url';
+const SHEET_URL_KEY = 'creed_sheet_url';
 let currentData = null;
 let scriptURL   = '';
 
@@ -535,8 +536,6 @@ function pad(n) { return String(n).padStart(2,'0'); }
 })();
 
 // ── GOOGLE SHEETS LINK ───────────────────────────────────────
-const SHEET_URL_KEY = 'creed_sheet_url';
-
 function openGoogleSheets() {
   const url = localStorage.getItem(SHEET_URL_KEY) || '';
   if (!url) {
@@ -643,10 +642,12 @@ function updateEditPreview() {
     + '</div>';
 }
 
-// Live preview khi thay doi input
-['edit-lot','edit-pipv','edit-ep','edit-xp','edit-sl'].forEach(function(id) {
-  const el = document.getElementById(id);
-  if (el) el.addEventListener('input', updateEditPreview);
+// Live preview khi thay doi input - chay sau khi DOM load xong
+document.addEventListener('DOMContentLoaded', function() {
+  ['edit-lot','edit-pipv','edit-ep','edit-xp','edit-sl'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateEditPreview);
+  });
 });
 
 function submitEdit() {
