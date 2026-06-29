@@ -384,25 +384,33 @@ function loadStats() {
 }
 
 function renderStats(list, el) {
-  const total    = list.length;
-  const pnls     = list.map(function(r) { return parseFloat(r['PnL (USD)']) || 0; });
+  // Tach rieng: skip (RtR=Skip), thang (pnl>0), thua (pnl<0)
+  const traded   = list.filter(function(r) { return r['RtR'] !== 'Skip'; });
+  const skipped  = list.length - traded.length;
+  const total    = traded.length;
+  const pnls     = traded.map(function(r) { return parseFloat(r['PnL (USD)']) || 0; });
   const wins     = pnls.filter(function(p) { return p > 0; }).length;
-  const losses   = total - wins;
+  const losses   = pnls.filter(function(p) { return p < 0; }).length;
   const totalPnl = pnls.reduce(function(s,p) { return s+p; }, 0);
-  const avgPnl   = totalPnl / total;
-  const best     = Math.max.apply(null, pnls);
-  const worst    = Math.min.apply(null, pnls);
-  const winRate  = (wins / total * 100).toFixed(1);
-  const rtrs     = list.map(function(r) {
+  const avgPnl   = total > 0 ? totalPnl / total : 0;
+  const best     = pnls.length ? Math.max.apply(null, pnls) : 0;
+  const worst    = pnls.length ? Math.min.apply(null, pnls) : 0;
+  const winRate  = total > 0 ? (wins / total * 100).toFixed(1) : '0.0';
+  const rtrs     = traded.map(function(r) {
     const v = r['RtR'];
-    if (!v || v === '--') return null;
+    if (!v || v === '--' || v === 'Loss' || v === 'Skip') return null;
     const parts = String(v).split(':');
     return parts.length === 2 ? parseFloat(parts[1]) : null;
   }).filter(function(v) { return v !== null; });
   const avgRtr = rtrs.length ? rtrs.reduce(function(s,v) { return s+v; },0) / rtrs.length : 0;
 
-  el.innerHTML =
-    '<div class="grid3" style="margin-bottom:12px">'
+  const skipNote = skipped > 0
+    ? '<div style="font-size:12px;color:#888;margin-bottom:12px">'
+      + skipped + ' phase khong giao dich (da loai khoi thong ke)</div>'
+    : '';
+
+  el.innerHTML = skipNote
+    + '<div class="grid3" style="margin-bottom:12px">'
     + metric('Tong lenh', total)
     + metric('Win rate', winRate + '%')
     + metric('Avg RtR', avgRtr ? '1:'+avgRtr.toFixed(2) : '--')
@@ -412,12 +420,12 @@ function renderStats(list, el) {
     + metric('Avg PnL/lenh', (avgPnl>=0?'+':'')+avgPnl.toFixed(2)+'$', avgPnl>=0?'pos':'neg')
     + '</div>'
     + '<div class="grid2" style="margin-bottom:12px">'
-    + metric('Best win', '+'+best.toFixed(2)+'$', 'pos')
+    + metric('Best win', (best>=0?'+':'')+best.toFixed(2)+'$', 'pos')
     + metric('Worst loss', worst.toFixed(2)+'$', 'neg')
     + '</div>'
     + '<div class="card"><div class="card-title">Win / Loss</div>'
     + '<div style="display:flex;gap:8px;align-items:center">'
-    + '<div style="flex:'+wins+';background:#28a745;height:12px;border-radius:5px;min-width:4px"></div>'
+    + '<div style="flex:'+(wins||0.01)+';background:#28a745;height:12px;border-radius:5px;min-width:4px"></div>'
     + '<div style="flex:'+(losses||0.01)+';background:#dc3545;height:12px;border-radius:5px;min-width:4px"></div>'
     + '</div>'
     + '<div style="display:flex;justify-content:space-between;font-size:12px;color:#888;margin-top:6px">'
