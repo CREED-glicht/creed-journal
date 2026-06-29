@@ -100,8 +100,8 @@ td{padding:7px 8px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
         <input type="number" id="inp-lot" value="0.1" min="0.01" step="0.01" oninput="calcPnl()">
       </div>
       <div>
-        <div class="lbl" style="margin-bottom:5px">Pip value (USD/lot) — XAUUSD=10</div>
-        <input type="number" id="inp-pipval" value="10" min="1" step="1" oninput="calcPnl()">
+        <div class="lbl" style="margin-bottom:5px">Pip value (USD/lot) — XAUUSD=100</div>
+        <input type="number" id="inp-pipval" value="100" min="1" step="1" oninput="calcPnl()">
       </div>
     </div>
     <div class="grid3">
@@ -178,18 +178,6 @@ const URL_KEY = 'creed_script_url';
 let currentData = null;
 let scriptURL   = '';
 
-// ── INIT ─────────────────────────────────────────────────────
-(function init() {
-  scriptURL = localStorage.getItem(URL_KEY) || '';
-  if (document.getElementById('inp-url'))
-    document.getElementById('inp-url').value = scriptURL;
-
-  const data = parseURLParams();
-  if (data && data.sym) {
-    fillForm(data);
-  }
-})();
-
 // ── TAB ──────────────────────────────────────────────────────
 function showTab(t) {
   ['calc','history','stats','setup'].forEach(function(x) {
@@ -247,19 +235,16 @@ function fillForm(data) {
 function calcPnl() {
   if (!currentData) return;
   const lot   = parseFloat(document.getElementById('inp-lot').value)    || 0;
-  const pipv  = parseFloat(document.getElementById('inp-pipval').value) || 10;
+  const pipv  = parseFloat(document.getElementById('inp-pipval').value) || 100;
   const mv    = currentData.mv || 0;
   const pnl   = (mv / 10) * lot * pipv;
   const ep    = currentData.ep || 0;
   const xp    = currentData.xp || 0;
   const sl    = currentData.sl || 0;
-  const mv    = currentData.mv || 0;
   let rtr = '--';
   if (sl > 0 && ep > 0) {
-    const risk   = Math.abs(ep - sl);
-    const reward = Math.abs(xp - ep);
-    if (risk > 0 && mv > 0) rtr = '1:' + (reward/risk).toFixed(2);
-    else if (mv <= 0) rtr = 'Loss';
+    const risk = Math.abs(ep - sl), reward = Math.abs(xp - ep);
+    if (risk > 0) rtr = '1:' + (reward/risk).toFixed(2);
   }
   const pnlEl = document.getElementById('r-pnl');
   pnlEl.textContent = (pnl>=0?'+':'') + pnl.toFixed(2) + ' $';
@@ -277,7 +262,7 @@ function saveEntry() {
     return;
   }
   const lot  = parseFloat(document.getElementById('inp-lot').value)    || 0;
-  const pipv = parseFloat(document.getElementById('inp-pipval').value) || 10;
+  const pipv = parseFloat(document.getElementById('inp-pipval').value) || 100;
   const btn  = document.getElementById('btn-save');
   btn.disabled = true;
   btn.innerHTML = '<span class="spin"></span>Dang luu...';
@@ -503,6 +488,22 @@ function unixToStr(ts) {
 }
 
 function pad(n) { return String(n).padStart(2,'0'); }
+
+// ── INIT: chay ngay khi trang load ───────────────────────────
+(function init() {
+  // Load Apps Script URL da luu
+  scriptURL = localStorage.getItem(URL_KEY) || '';
+
+  // Doc params tu URL (do EA truyen vao link)
+  const data = parseURLParams();
+  if (data && data.sym) {
+    fillForm(data);
+  } else {
+    // Khong co params -> hien huong dan
+    const box = document.getElementById('alert-calc');
+    box.style.display = 'block';
+  }
+})();
 </script>
 </body>
 </html>
